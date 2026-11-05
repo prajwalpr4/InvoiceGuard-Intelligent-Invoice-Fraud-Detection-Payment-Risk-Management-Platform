@@ -181,5 +181,3 @@ invoiceguard/
 ## 📄 License
 
 Licensed under the Enterprise Commercial License. © 2026 InvoiceGuard Inc. All rights reserved.
-#   I n v o i c e G u a r d - I n t e l l i g e n t - I n v o i c e - F r a u d - D e t e c t i o n - P a y m e n t - R i s k - M a n a g e m e n t - P l a t f o r m  
- 
