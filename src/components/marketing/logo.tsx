@@ -33,7 +33,7 @@ export function Logo({
       {/* Precision Shield with Verified Checkmark SVG Icon */}
       <div
         className={`relative ${iconSizes[size]} rounded-xl flex items-center justify-center shrink-0 shadow-xs ${
-          inverted ? 'bg-white/10 ring-1 ring-white/20' : 'bg-blue-700 shadow-blue-700/20'
+          inverted ? 'bg-white/10 ring-1 ring-white/20' : 'bg-[#2347F5] shadow-[#2347F5]/20'
         }`}
       >
         <svg
@@ -65,18 +65,18 @@ export function Logo({
       <div className="flex flex-col">
         <span
           className={`font-bold tracking-tight leading-none ${textSizes[size]} ${
-            inverted ? 'text-white' : 'text-slate-900'
+            inverted ? 'text-white' : 'text-[#0A1226]'
           }`}
         >
-          Invoice<span className={inverted ? 'text-blue-300' : 'text-blue-700'}>Guard</span>
+          Invoice<span className={inverted ? 'text-[#93C5FD]' : 'text-[#2347F5]'}>Guard</span>
         </span>
         {showSubtitle && (
           <span
             className={`text-[10px] uppercase font-semibold tracking-wider mt-0.5 ${
-              inverted ? 'text-slate-400' : 'text-slate-500'
+              inverted ? 'text-[#94A3B8]' : 'text-[#667085]'
             }`}
           >
-            Enterprise AP Defense
+            Accounts Payable Defense
           </span>
         )}
       </div>
@@ -85,7 +85,10 @@ export function Logo({
 
   if (href) {
     return (
-      <Link href={href} className="inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded-lg">
+      <Link
+        href={href}
+        className="inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2347F5] rounded-lg"
+      >
         {Content}
       </Link>
     );
@@ -93,4 +96,3 @@ export function Logo({
 
   return Content;
 }
-

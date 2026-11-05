@@ -1,80 +1,96 @@
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Sparkles, CheckCircle2, ShieldCheck, ChevronRight } from 'lucide-react';
-import { ProductPreview } from './product-preview';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ForensicsStage } from './forensics-stage';
 
 export function Hero() {
   return (
-    <section className="relative pt-12 pb-20 md:pt-16 md:pb-28 overflow-hidden bg-white">
-      {/* Subtle background glow and static dot grid */}
-      <div className="absolute inset-0 ig-grid-pattern opacity-60 pointer-events-none" aria-hidden="true" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] ig-hero-glow pointer-events-none" aria-hidden="true" />
+    <section className="relative min-h-[calc(100svh-4rem)] flex items-center py-12 lg:py-16 overflow-hidden bg-white">
+      {/* Background Static Atmosphere: subtle grid pattern and faint radial wash */}
+      <div className="absolute inset-0 fl-grid-pattern opacity-60 pointer-events-none" aria-hidden="true" />
+      <div className="absolute inset-0 fl-hero-wash pointer-events-none" aria-hidden="true" />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Hero Top Copy */}
-        <div className="text-center max-w-3xl mx-auto">
-          {/* Eyebrow Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50/90 border border-blue-200/80 text-blue-800 text-xs font-semibold mb-6 shadow-xs">
-            <Sparkles className="w-3.5 h-3.5 text-blue-700" />
-            <span>Enterprise Accounts Payable Risk Management</span>
-            <ChevronRight className="w-3 h-3 text-blue-600" />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+          {/* Left Column (cols 1-5 on desktop) */}
+          <div className="lg:col-span-5 flex flex-col justify-center">
+            {/* Eyebrow Pill */}
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#EEF2FF] border border-[#C7D7FE] text-[#2347F5] text-xs font-semibold mb-6 w-fit">
+              <span className="w-2 h-2 rounded-full bg-[#2347F5] animate-ping" />
+              <span className="w-2 h-2 rounded-full bg-[#2347F5] -ml-4" />
+              <span>Accounts payable fraud defense</span>
+            </div>
+
+            {/* H1 Display */}
+            <h1 className="fl-display text-[#0A1226]">
+              Catch invoice fraud{' '}
+              <span className="relative inline-block text-[#2347F5]">
+                before the payment leaves.
+                {/* Hand-drawn feel SVG underline stroke sitting below descenders */}
+                <svg
+                  viewBox="0 0 280 14"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="absolute -bottom-2 left-0 w-full h-3 text-[#2347F5] overflow-visible"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 10C65 4 195 2 277 8"
+                    stroke="currentColor"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+            </h1>
+
+            {/* Lead Subtitle (<= 2 lines worth, max-w ~60ch) */}
+            <p className="fl-lead mt-6 max-w-[55ch]">
+              InvoiceGuard reads every vendor invoice, checks it against your payment history, and shows
+              reviewers exactly why it looks risky.
+            </p>
+
+            {/* Dual CTAs */}
+            <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <Link
+                href="/signup"
+                className="inline-flex items-center justify-center gap-2 bg-[#2347F5] hover:bg-[#1B38C9] text-white font-semibold text-sm h-12 px-7 rounded-xl shadow-sm hover:shadow transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2347F5]"
+              >
+                <span>Get Started Free</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+
+              <a
+                href="#how-it-works"
+                className="inline-flex items-center justify-center gap-2 bg-[#F7F9FC] hover:bg-[#EEF2F8] text-[#0A1226] font-semibold text-sm h-12 px-7 rounded-xl border border-[#E3E8F0] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2347F5]"
+              >
+                <span>See how it works</span>
+              </a>
+            </div>
+
+            {/* 3 Truthful Micro-points Only */}
+            <div className="mt-8 pt-6 border-t border-[#E3E8F0] flex flex-wrap items-center gap-y-2 gap-x-6 text-xs text-[#667085] font-medium">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-[#12B76A] shrink-0" />
+                Maker-checker approvals
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-[#12B76A] shrink-0" />
+                Append-only audit trail
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-[#12B76A] shrink-0" />
+                Role-based access
+              </span>
+            </div>
           </div>
 
-          {/* Main H1 Headline */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.12]">
-            Detect Invoice Fraud Before It Becomes a{' '}
-            <span className="text-blue-700 decoration-blue-200 underline-offset-8">
-              Disbursement Loss.
-            </span>
-          </h1>
-
-          {/* Subheading */}
-          <p className="mt-6 text-base sm:text-lg md:text-xl text-slate-600 leading-relaxed max-w-2xl mx-auto font-normal">
-            Automate invoice verification with multi-field OCR, 8-point fraud detection, 3-way PO matching,
-            and maker-checker remittance governance before funds ever leave your accounts.
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
-            <Link
-              href="/signup"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-base px-7 h-12 rounded-xl transition-all shadow-md shadow-blue-700/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
-            >
-              <span>Get Started Free</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-
-            <Link
-              href="/login"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-800 font-semibold text-base px-7 h-12 rounded-xl border border-slate-200 transition-all shadow-xs hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
-            >
-              <span>Explore Live Demo</span>
-            </Link>
+          {/* Right Column: Live Forensics Stage (cols 6-12) */}
+          <div className="lg:col-span-7 w-full">
+            <ForensicsStage />
           </div>
-
-          {/* Trust Value Points */}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-y-2 gap-x-6 text-xs text-slate-500 font-medium">
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              Maker-Checker Dual Controls
-            </span>
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              PostgreSQL Row-Level Security
-            </span>
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              Immutable Audit Trails
-            </span>
-          </div>
-        </div>
-
-        {/* Hero Interactive Showcase / Product Preview */}
-        <div className="mt-12 sm:mt-16 max-w-5xl mx-auto">
-          <ProductPreview />
         </div>
       </div>
     </section>
   );
 }
-
