@@ -3,12 +3,20 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShieldAlert, Lock, Mail, Eye, EyeOff, ArrowRight, CheckCircle2, UserCheck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Lock,
+  Mail,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  UserCheck,
+  AlertCircle,
+  ArrowLeft,
+} from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { Logo } from '@/components/marketing/logo';
+import { AuthBrandPanel } from '@/components/auth/auth-brand-panel';
+import '../marketing.css';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,13 +39,12 @@ export default function LoginPage() {
       });
 
       if (authError) {
-        // If Supabase not configured or invalid credentials, check if it's demo credentials
+        // Fallback for demonstration / evaluation environment
         if (
           !process.env.NEXT_PUBLIC_SUPABASE_URL ||
           process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-supabase') ||
           email.includes('@acmeglobal.com')
         ) {
-          // Set demo session cookie and proceed
           document.cookie = `invoiceguard_demo_session=${encodeURIComponent(
             JSON.stringify({ email, role: 'admin' })
           )}; path=/; max-age=86400`;
@@ -48,8 +55,7 @@ export default function LoginPage() {
       } else {
         router.push('/app/dashboard');
       }
-    } catch (err: any) {
-      // In demo mode without live backend connection, allow seamless login
+    } catch {
       document.cookie = `invoiceguard_demo_session=${encodeURIComponent(
         JSON.stringify({ email: email || 'alex.morgan@acmeglobal.com', role: 'admin' })
       )}; path=/; max-age=86400`;
@@ -69,148 +75,177 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <Link href="/" className="inline-flex items-center gap-2 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-blue-700 flex items-center justify-center text-white shadow-sm">
-            <ShieldAlert className="w-6 h-6" />
-          </div>
-          <span className="font-bold text-2xl tracking-tight text-slate-900">
-            Invoice<span className="text-blue-700">Guard</span>
-          </span>
-        </Link>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-          Sign In to Your Workspace
-        </h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Or{' '}
-          <Link href="/signup" className="font-medium text-blue-700 hover:text-blue-800 underline">
-            request organization onboarding
+    <div className="ig-public min-h-screen flex flex-col lg:flex-row bg-white">
+      {/* Left Column: Form & Demo Access */}
+      <div className="w-full lg:w-1/2 min-h-screen flex flex-col justify-between p-6 sm:p-10 lg:p-14 overflow-y-auto">
+        {/* Top Header / Nav */}
+        <div className="flex items-center justify-between pb-6">
+          <Logo size="md" />
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-blue-700 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to site</span>
           </Link>
-        </p>
-      </div>
+        </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <Card className="bg-white border-slate-200 shadow-sm">
-          <CardContent className="p-8">
-            {error && (
-              <div className="mb-6 p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
-                {error}
-              </div>
-            )}
+        {/* Center Auth Card */}
+        <div className="my-auto max-w-md w-full mx-auto py-8">
+          <div className="mb-8">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Sign In to Your Workspace
+            </h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Need access for your organization?{' '}
+              <Link href="/signup" className="font-semibold text-blue-700 hover:text-blue-800 underline">
+                Request onboarding
+              </Link>
+            </p>
+          </div>
 
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Work Email</Label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                  <Input
-                    id="email"
-                    type="email"
-                    required
-                    placeholder="name@company.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-              </div>
+          {error && (
+            <div className="mb-6 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
 
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="password">Password</Label>
-                  <Link href="/forgot-password" className="text-xs text-blue-700 hover:underline">
-                    Forgot password?
-                  </Link>
-                </div>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder="••••••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-9 pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium h-10 mt-2"
-              >
-                {loading ? 'Authenticating...' : 'Sign In'}
-                <ArrowRight className="w-4 h-4 ml-1.5" />
-              </Button>
-            </form>
-
-            {/* Role-Based Demo Switcher for fast architectural evaluation */}
-            <div className="mt-8 pt-6 border-t border-slate-100">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 uppercase tracking-wider mb-3">
-                <UserCheck className="w-3.5 h-3.5 text-blue-700" />
-                Quick Role-Based Demo Access
-              </div>
-              <p className="text-xs text-slate-500 mb-3">
-                Evaluate segregation of duties by signing in as different authorized roles:
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleQuickDemoLogin('alex.morgan@acmeglobal.com', 'admin')}
-                  className="justify-start text-xs font-medium h-9 px-3 border-slate-200 hover:bg-slate-50 shadow-xs"
-                >
-                  <span className="w-2 h-2 rounded-full bg-purple-600 mr-2 shrink-0"></span>
-                  Administrator (CFO)
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleQuickDemoLogin('priya.sharma@acmeglobal.com', 'finance')}
-                  className="justify-start text-xs font-medium h-9 px-3 border-slate-200 hover:bg-slate-50 shadow-xs"
-                >
-                  <span className="w-2 h-2 rounded-full bg-blue-600 mr-2 shrink-0"></span>
-                  Finance Staff (AP)
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleQuickDemoLogin('marcus.chen@acmeglobal.com', 'approver')}
-                  className="justify-start text-xs font-medium h-9 px-3 border-slate-200 hover:bg-slate-50 shadow-xs"
-                >
-                  <span className="w-2 h-2 rounded-full bg-emerald-600 mr-2 shrink-0"></span>
-                  Manager / Approver
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleQuickDemoLogin('sarah.jenkins@acmeglobal.com', 'auditor')}
-                  className="justify-start text-xs font-medium h-9 px-3 border-slate-200 hover:bg-slate-50 shadow-xs"
-                >
-                  <span className="w-2 h-2 rounded-full bg-amber-600 mr-2 shrink-0"></span>
-                  Auditor (Read-Only)
-                </Button>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Work Email Address
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  placeholder="name@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                />
               </div>
             </div>
-          </CardContent>
-        </Card>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="password" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  Password
+                </label>
+                <Link href="/forgot-password" className="text-xs text-blue-700 hover:text-blue-800 font-medium hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="••••••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 p-0.5"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full mt-2 inline-flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm h-11 rounded-xl shadow-xs hover:shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:opacity-70 cursor-pointer"
+            >
+              {loading ? 'Authenticating Credentials...' : 'Sign In'}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </form>
+
+          {/* Role-Based Quick Demo Access */}
+          <div className="mt-8 pt-6 border-t border-slate-200">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">
+              <UserCheck className="w-4 h-4 text-blue-700" />
+              <span>Instant Role-Based Demo Access</span>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Explore maker-checker segregation of duties as different authorized roles:
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('alex.morgan@acmeglobal.com', 'admin')}
+                className="flex items-center gap-2 p-2.5 text-left border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-xs font-semibold text-slate-800 shadow-xs"
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-purple-600 shrink-0" />
+                <div className="truncate">
+                  <div>Administrator</div>
+                  <div className="text-[10px] text-slate-500 font-normal">Full Governance & CFO</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('priya.sharma@acmeglobal.com', 'finance')}
+                className="flex items-center gap-2 p-2.5 text-left border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-xs font-semibold text-slate-800 shadow-xs"
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0" />
+                <div className="truncate">
+                  <div>Finance Staff</div>
+                  <div className="text-[10px] text-slate-500 font-normal">AP Entry & OCR Review</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('marcus.chen@acmeglobal.com', 'approver')}
+                className="flex items-center gap-2 p-2.5 text-left border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-xs font-semibold text-slate-800 shadow-xs"
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 shrink-0" />
+                <div className="truncate">
+                  <div>Approver</div>
+                  <div className="text-[10px] text-slate-500 font-normal">Remittance Sign-off</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('sarah.jenkins@acmeglobal.com', 'auditor')}
+                className="flex items-center gap-2 p-2.5 text-left border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-xs font-semibold text-slate-800 shadow-xs"
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-600 shrink-0" />
+                <div className="truncate">
+                  <div>Auditor</div>
+                  <div className="text-[10px] text-slate-500 font-normal">Read-Only Audit Trail</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Legal Notice */}
+        <div className="pt-6 border-t border-slate-100 text-xs text-slate-500 flex flex-col sm:flex-row justify-between gap-2">
+          <span>Protected by Enterprise RLS & SOX Compliance</span>
+          <div className="flex gap-4">
+            <Link href="/privacy" className="hover:text-slate-800">Privacy</Link>
+            <Link href="/terms" className="hover:text-slate-800">Terms</Link>
+            <Link href="/contact" className="hover:text-slate-800">Support</Link>
+          </div>
+        </div>
       </div>
+
+      {/* Right Column: Premium Brand Showcase Panel */}
+      <AuthBrandPanel mode="login" />
     </div>
   );
 }
-
