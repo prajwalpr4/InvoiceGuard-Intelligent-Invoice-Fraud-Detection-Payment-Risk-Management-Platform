@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       payment_reference: body.payment_reference,
       bank_account_used: body.bank_account_used,
       notes: body.notes,
-      userId: body.userId || 'e4fc6fce-8142-4d1e-8008-af8bd0b3adf6',
+      userId: body.userId || '52961957-4846-4436-a783-afa5d7818ac9',
     });
 
     return NextResponse.json({ payment }, { status: 201 });

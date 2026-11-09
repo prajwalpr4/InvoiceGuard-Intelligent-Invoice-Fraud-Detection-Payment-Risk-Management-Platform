@@ -27,11 +27,11 @@ export const DEMO_ORG: Organization = {
 export const DEMO_USERS: Record<string, { profile: Profile; role: string }> = {
   admin: {
     profile: {
-      id: '4edea32e-a42e-4bb7-99f8-d53f493f3ac3',
-      email: 'alex.morgan@acmeglobal.com',
-      full_name: 'Alex Morgan',
-      job_title: 'Chief Financial Officer & Admin',
-      department: 'Executive Finance',
+      id: '0821301e-9a4a-41cc-b6f4-0cd663e91cf3',
+      email: 'admin@invoiceguard.local',
+      full_name: 'Administrator',
+      job_title: 'System Administrator & CFO',
+      department: 'Finance & Compliance',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },
@@ -39,10 +39,10 @@ export const DEMO_USERS: Record<string, { profile: Profile; role: string }> = {
   },
   finance: {
     profile: {
-      id: 'e4fc6fce-8142-4d1e-8008-af8bd0b3adf6',
-      email: 'priya.sharma@acmeglobal.com',
-      full_name: 'Priya Sharma',
-      job_title: 'Accounts Payable Specialist',
+      id: '52961957-4846-4436-a783-afa5d7818ac9',
+      email: 'finance@invoiceguard.local',
+      full_name: 'Finance Specialist',
+      job_title: 'Accounts Payable Officer',
       department: 'Finance Operations',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -51,9 +51,9 @@ export const DEMO_USERS: Record<string, { profile: Profile; role: string }> = {
   },
   approver: {
     profile: {
-      id: '86026519-6494-4652-91db-7c8e8998742d',
-      email: 'marcus.chen@acmeglobal.com',
-      full_name: 'Marcus Chen',
+      id: 'cd3d8a1b-2c4a-45d7-9cfe-550c793e3062',
+      email: 'approver@invoiceguard.local',
+      full_name: 'Finance Approver',
       job_title: 'Finance Director & Approver',
       department: 'Financial Control',
       created_at: new Date().toISOString(),
@@ -63,10 +63,10 @@ export const DEMO_USERS: Record<string, { profile: Profile; role: string }> = {
   },
   auditor: {
     profile: {
-      id: 'd04a083b-febf-438c-a3f7-d248910afa31',
-      email: 'sarah.jenkins@acmeglobal.com',
-      full_name: 'Sarah Jenkins',
-      job_title: 'Internal Audit & Compliance Lead',
+      id: '19741721-8bc3-435b-aa84-f8bf4eddd0f6',
+      email: 'auditor@invoiceguard.local',
+      full_name: 'Compliance Auditor',
+      job_title: 'Internal Audit Lead',
       department: 'Internal Audit',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

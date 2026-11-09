@@ -254,7 +254,7 @@ export default function LoginPage() {
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <button
                   type="button"
-                  onClick={() => handleQuickDemoLogin('alex.morgan@acmeglobal.com', 'admin')}
+                  onClick={() => handleQuickDemoLogin('admin@invoiceguard.local', 'admin')}
                   className="p-2.5 text-left border border-[#E3E8F0] rounded-xl hover:bg-[#F7F9FC] transition-colors flex items-center gap-2"
                 >
                   <span className="w-2 h-2 rounded-full bg-purple-600 shrink-0" />
@@ -265,7 +265,7 @@ export default function LoginPage() {
 
                 <button
                   type="button"
-                  onClick={() => handleQuickDemoLogin('priya.sharma@acmeglobal.com', 'finance')}
+                  onClick={() => handleQuickDemoLogin('finance@invoiceguard.local', 'finance')}
                   className="p-2.5 text-left border border-[#E3E8F0] rounded-xl hover:bg-[#F7F9FC] transition-colors flex items-center gap-2"
                 >
                   <span className="w-2 h-2 rounded-full bg-[#2347F5] shrink-0" />
@@ -276,7 +276,7 @@ export default function LoginPage() {
 
                 <button
                   type="button"
-                  onClick={() => handleQuickDemoLogin('marcus.chen@acmeglobal.com', 'approver')}
+                  onClick={() => handleQuickDemoLogin('approver@invoiceguard.local', 'approver')}
                   className="p-2.5 text-left border border-[#E3E8F0] rounded-xl hover:bg-[#F7F9FC] transition-colors flex items-center gap-2"
                 >
                   <span className="w-2 h-2 rounded-full bg-[#12B76A] shrink-0" />
@@ -287,7 +287,7 @@ export default function LoginPage() {
 
                 <button
                   type="button"
-                  onClick={() => handleQuickDemoLogin('sarah.jenkins@acmeglobal.com', 'auditor')}
+                  onClick={() => handleQuickDemoLogin('auditor@invoiceguard.local', 'auditor')}
                   className="p-2.5 text-left border border-[#E3E8F0] rounded-xl hover:bg-[#F7F9FC] transition-colors flex items-center gap-2"
                 >
                   <span className="w-2 h-2 rounded-full bg-[#F79009] shrink-0" />

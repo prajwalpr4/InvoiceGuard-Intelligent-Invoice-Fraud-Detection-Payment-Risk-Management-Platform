@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         total_amount: Number(formData.get('total_amount')) || 0,
         department: (formData.get('department') as string) || undefined,
         notes: (formData.get('notes') as string) || undefined,
-        submitted_by_id: (formData.get('submitted_by_id') as string) || 'e4fc6fce-8142-4d1e-8008-af8bd0b3adf6',
+        submitted_by_id: (formData.get('submitted_by_id') as string) || '52961957-4846-4436-a783-afa5d7818ac9',
         bank_details,
         extracted_text: (formData.get('extracted_text') as string) || undefined,
         file: fileInfo,
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         total_amount: Number(body.total_amount) || 0,
         department: body.department,
         notes: body.notes,
-        submitted_by_id: body.submitted_by_id || 'e4fc6fce-8142-4d1e-8008-af8bd0b3adf6',
+        submitted_by_id: body.submitted_by_id || '52961957-4846-4436-a783-afa5d7818ac9',
         bank_details: body.bank_details,
         extracted_text: body.extracted_text,
       };

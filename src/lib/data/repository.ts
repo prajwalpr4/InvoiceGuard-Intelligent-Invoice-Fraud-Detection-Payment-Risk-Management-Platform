@@ -704,7 +704,7 @@ export class InvoiceGuardRepository {
     if (assessment.has_hard_stop) {
       // Generate In-App Alert in Supabase & memory
       await this.createNotification({
-        user_id: '4edea32e-a42e-4bb7-99f8-d53f493f3ac3',
+        user_id: '0821301e-9a4a-41cc-b6f4-0cd663e91cf3',
         title: `Critical Alert: Invoice ${invoice.invoice_number} Placed on Hold`,
         message: assessment.explanation,
         type: 'alert',
@@ -1284,7 +1284,7 @@ export class InvoiceGuardRepository {
     const newLog: AuditLog = {
       id,
       organization_id: this.store.organization.id,
-      user_id: data.user_id || '4edea32e-a42e-4bb7-99f8-d53f493f3ac3',
+      user_id: data.user_id || '0821301e-9a4a-41cc-b6f4-0cd663e91cf3',
       user_email: data.user_email || (data.user_id ? 'user@invoiceguard.local' : 'system@invoiceguard.local'),
       action: data.action,
       entity_type: data.entity_type,
