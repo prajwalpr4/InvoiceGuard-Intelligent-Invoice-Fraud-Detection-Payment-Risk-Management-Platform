@@ -20,7 +20,7 @@ export async function POST(
       invoiceId,
       body.action,
       body.reason,
-      body.userId || 'usr_approver_01'
+      body.userId || '00000000-0000-0000-0000-000000000012'
     );
 
     return NextResponse.json({ invoice: updatedInvoice });

@@ -154,6 +154,7 @@ export interface InvoiceFile {
   sha256_hash: string;
   page_count: number;
   created_at: string;
+  signed_url?: string;
 }
 
 export interface InvoiceLineItem {

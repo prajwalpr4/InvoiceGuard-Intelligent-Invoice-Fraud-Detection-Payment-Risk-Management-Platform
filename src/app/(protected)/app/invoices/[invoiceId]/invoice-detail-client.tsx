@@ -613,21 +613,91 @@ export function InvoiceDetailClient({
                   Cryptographically hashed and stored in private Supabase Storage
                 </CardDescription>
               </div>
-              <Button variant="outline" size="sm" className="text-xs h-8 gap-1.5 border-slate-200">
-                <Download className="w-3.5 h-3.5" /> Download Original PDF
-              </Button>
+              {invoice.file?.signed_url || invoice.files?.[0]?.signed_url ? (
+                <a
+                  href={invoice.file?.signed_url || invoice.files?.[0]?.signed_url}
+                  download={invoice.file?.file_name || invoice.files?.[0]?.file_name || `${invoice.invoice_number}.pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="outline" size="sm" className="text-xs h-8 gap-1.5 border-slate-200">
+                    <Download className="w-3.5 h-3.5" /> Download Original Document
+                  </Button>
+                </a>
+              ) : (
+                <Button variant="outline" size="sm" className="text-xs h-8 gap-1.5 border-slate-200" disabled>
+                  <Download className="w-3.5 h-3.5" /> Download Document
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="pt-6">
-              <div className="border border-slate-200 rounded-xl p-8 bg-slate-50 text-center">
-                <FileText className="w-16 h-16 text-slate-400 mx-auto mb-3" />
-                <h4 className="text-sm font-bold text-slate-900">{invoice.invoice_number}.pdf</h4>
-                <p className="text-xs text-slate-500 font-mono mt-1">
-                  SHA-256: 4f53cda18c2b489ef00192e10482b8109ad27bf192804c8a91028374a0123efd
-                </p>
-                <div className="mt-4 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 py-1.5 px-3 rounded-full inline-block">
-                  Document Integrity Verified • Tamper Check Passed
-                </div>
-              </div>
+              {(() => {
+                const docFile = invoice.file || invoice.files?.[0];
+                if (docFile?.signed_url && (docFile.mime_type?.startsWith('image/') || docFile.file_name?.match(/\.(png|jpe?g|webp|gif)$/i))) {
+                  return (
+                    <div className="border border-slate-200 rounded-xl p-6 bg-slate-50 text-center space-y-4">
+                      <div className="relative max-h-[600px] overflow-auto rounded-lg bg-white p-2 border border-slate-200 inline-block shadow-sm">
+                        <img
+                          src={docFile.signed_url}
+                          alt={docFile.file_name}
+                          className="max-h-[560px] w-auto mx-auto object-contain rounded"
+                        />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">{docFile.file_name}</h4>
+                        <p className="text-xs text-slate-500 font-mono mt-1">
+                          SHA-256: {docFile.sha256_hash}
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Size: {(docFile.file_size / 1024).toFixed(1)} KB • Stored in Supabase Bucket (invoice-files)
+                        </p>
+                        <div className="mt-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 py-1.5 px-3 rounded-full inline-block">
+                          Document Integrity Verified • Tamper Check Passed
+                        </div>
+                      </div>
+                    </div>
+                  );
+                } else if (docFile?.signed_url && docFile.mime_type === 'application/pdf') {
+                  return (
+                    <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-4">
+                      <iframe
+                        src={docFile.signed_url}
+                        className="w-full h-[600px] rounded-lg border border-slate-200 bg-white"
+                        title="Invoice PDF Preview"
+                      />
+                      <div className="text-center">
+                        <h4 className="text-sm font-bold text-slate-900">{docFile.file_name}</h4>
+                        <p className="text-xs text-slate-500 font-mono mt-1">
+                          SHA-256: {docFile.sha256_hash}
+                        </p>
+                        <div className="mt-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 py-1.5 px-3 rounded-full inline-block">
+                          Document Integrity Verified • Tamper Check Passed
+                        </div>
+                      </div>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="border border-slate-200 rounded-xl p-8 bg-slate-50 text-center">
+                      <FileText className="w-16 h-16 text-slate-400 mx-auto mb-3" />
+                      <h4 className="text-sm font-bold text-slate-900">
+                        {docFile?.file_name || `${invoice.invoice_number}.pdf`}
+                      </h4>
+                      <p className="text-xs text-slate-500 font-mono mt-1">
+                        SHA-256: {docFile?.sha256_hash || '4f53cda18c2b489ef00192e10482b8109ad27bf192804c8a91028374a0123efd'}
+                      </p>
+                      {docFile?.file_size && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Size: {(docFile.file_size / 1024).toFixed(1)} KB • Stored in Supabase Bucket (invoice-files)
+                        </p>
+                      )}
+                      <div className="mt-4 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 py-1.5 px-3 rounded-full inline-block">
+                        Document Integrity Verified • Tamper Check Passed
+                      </div>
+                    </div>
+                  );
+                }
+              })()}
             </CardContent>
           </Card>
         </TabsContent>

@@ -121,27 +121,36 @@ export function NewInvoiceClient({
     setError(null);
 
     try {
+      const formData = new FormData();
+      if (file) {
+        formData.append('file', file);
+      }
+      formData.append('invoice_number', invoiceNumber);
+      formData.append('invoice_date', invoiceDate);
+      if (dueDate) formData.append('due_date', dueDate);
+      if (selectedVendorId) formData.append('vendor_id', selectedVendorId);
+      if (selectedPoId) formData.append('po_id', selectedPoId);
+      formData.append('subtotal', String(subtotal));
+      formData.append('tax_amount', String(taxAmount));
+      formData.append('total_amount', String(totalAmount));
+      formData.append('department', department);
+      if (notes) formData.append('notes', notes);
+      formData.append('submitted_by_id', currentUserId);
+      formData.append(
+        'bank_details',
+        JSON.stringify({
+          account_number: bankAccount,
+          ifsc_code: ifscCode,
+          bank_name: bankName,
+        })
+      );
+      if (extractedData?.raw_text) {
+        formData.append('extracted_text', extractedData.raw_text);
+      }
+
       const res = await fetch('/api/invoices', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          invoice_number: invoiceNumber,
-          invoice_date: invoiceDate,
-          due_date: dueDate,
-          vendor_id: selectedVendorId || undefined,
-          po_id: selectedPoId || undefined,
-          subtotal: Number(subtotal),
-          tax_amount: Number(taxAmount),
-          total_amount: Number(totalAmount),
-          department,
-          notes,
-          submitted_by_id: currentUserId,
-          bank_details: {
-            account_number: bankAccount,
-            ifsc_code: ifscCode,
-            bank_name: bankName,
-          },
-        }),
+        body: formData,
       });
 
       const data = await res.json();

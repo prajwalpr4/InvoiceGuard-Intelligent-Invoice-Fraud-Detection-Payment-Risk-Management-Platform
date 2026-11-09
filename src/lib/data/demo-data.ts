@@ -14,12 +14,12 @@ import {
 } from '@/types/database';
 
 export const DEMO_ORG: Organization = {
-  id: 'org_enterprise_01',
+  id: '00000000-0000-0000-0000-000000000001',
   name: 'InvoiceGuard Workspace',
   slug: 'workspace',
-  currency: 'USD',
-  tax_identifier: 'TAX_ID',
-  timezone: 'UTC',
+  currency: 'INR',
+  tax_identifier: 'GSTIN',
+  timezone: 'Asia/Kolkata',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
@@ -27,7 +27,7 @@ export const DEMO_ORG: Organization = {
 export const DEMO_USERS: Record<string, { profile: Profile; role: string }> = {
   admin: {
     profile: {
-      id: 'usr_admin_01',
+      id: '00000000-0000-0000-0000-000000000010',
       email: 'admin@invoiceguard.local',
       full_name: 'Administrator',
       job_title: 'System Administrator',
@@ -39,7 +39,7 @@ export const DEMO_USERS: Record<string, { profile: Profile; role: string }> = {
   },
   finance: {
     profile: {
-      id: 'usr_finance_01',
+      id: '00000000-0000-0000-0000-000000000011',
       email: 'finance@invoiceguard.local',
       full_name: 'Finance Specialist',
       job_title: 'Accounts Payable Officer',
@@ -51,7 +51,7 @@ export const DEMO_USERS: Record<string, { profile: Profile; role: string }> = {
   },
   approver: {
     profile: {
-      id: 'usr_approver_01',
+      id: '00000000-0000-0000-0000-000000000012',
       email: 'approver@invoiceguard.local',
       full_name: 'Finance Approver',
       job_title: 'Finance Director & Approver',
@@ -63,7 +63,7 @@ export const DEMO_USERS: Record<string, { profile: Profile; role: string }> = {
   },
   auditor: {
     profile: {
-      id: 'usr_auditor_01',
+      id: '00000000-0000-0000-0000-000000000013',
       email: 'auditor@invoiceguard.local',
       full_name: 'Compliance Auditor',
       job_title: 'Internal Audit Lead',
@@ -76,7 +76,7 @@ export const DEMO_USERS: Record<string, { profile: Profile; role: string }> = {
 };
 
 export const DEMO_MEMBERS: OrganizationMember[] = Object.values(DEMO_USERS).map((u, i) => ({
-  id: `member_0${i + 1}`,
+  id: `00000000-0000-0000-0000-00000000002${i + 1}`,
   organization_id: DEMO_ORG.id,
   user_id: u.profile.id,
   role: u.role as any,
