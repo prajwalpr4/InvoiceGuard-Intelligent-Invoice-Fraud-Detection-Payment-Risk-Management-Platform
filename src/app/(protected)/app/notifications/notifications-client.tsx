@@ -29,14 +29,32 @@ export function NotificationsClient({ initialNotifications }: NotificationsClien
     return true;
   });
 
-  const markAllRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, is_read: true })));
+  const markAllRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    try {
+      await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_all_read' }),
+      });
+    } catch (e) {
+      console.error('Failed to mark all notifications as read', e);
+    }
   };
 
-  const markSingleRead = (id: string) => {
-    setNotifications(
-      notifications.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+  const markSingleRead = async (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
     );
+    try {
+      await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+    } catch (e) {
+      console.error('Failed to mark notification as read', e);
+    }
   };
 
   return (

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -47,8 +48,19 @@ interface NavSection {
   items: NavItem[];
 }
 
-export function AppSidebar({ userRole, userName, userEmail, unreadCount = 2 }: SidebarProps) {
+export function AppSidebar({ userRole, userName, userEmail, unreadCount = 0 }: SidebarProps) {
   const pathname = usePathname();
+  const [effectiveUnreadCount, setEffectiveUnreadCount] = useState(unreadCount);
+
+  useEffect(() => {
+    setEffectiveUnreadCount(unreadCount);
+  }, [unreadCount]);
+
+  useEffect(() => {
+    if (pathname === '/app/notifications') {
+      setEffectiveUnreadCount(0);
+    }
+  }, [pathname]);
 
   // Navigation definition with role-based accessibility
   const navSections: NavSection[] = [
@@ -131,14 +143,14 @@ export function AppSidebar({ userRole, userName, userEmail, unreadCount = 2 }: S
           href: '/app/notifications',
           icon: Bell,
           roles: ['admin', 'finance', 'approver', 'auditor', 'vendor'],
-          badge: unreadCount > 0 ? `${unreadCount} New` : undefined,
+          badge: effectiveUnreadCount > 0 ? `${effectiveUnreadCount} New` : undefined,
           badgeColor: 'bg-blue-100 text-blue-700',
         },
         {
           label: 'Audit Logs',
           href: '/app/audit-logs',
           icon: ScrollText,
-          roles: ['admin', 'auditor', 'approver'],
+          roles: ['admin', 'auditor'],
         },
       ],
     },
@@ -224,6 +236,11 @@ export function AppSidebar({ userRole, userName, userEmail, unreadCount = 2 }: S
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={() => {
+                        if (item.href === '/app/notifications') {
+                          setEffectiveUnreadCount(0);
+                        }
+                      }}
                       className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all group ${
                         isActive
                           ? 'bg-blue-700 text-white shadow-sm'

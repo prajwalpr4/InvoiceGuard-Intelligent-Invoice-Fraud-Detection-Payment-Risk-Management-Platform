@@ -7,7 +7,9 @@ export const metadata = {
 
 export default async function NotificationsPage() {
   const notifications = await InvoiceGuardRepository.getNotifications();
+  // Automatically mark all notifications as read upon visiting notification center
+  await InvoiceGuardRepository.markAllNotificationsRead();
 
-  return <NotificationsClient initialNotifications={notifications} />;
+  return <NotificationsClient initialNotifications={notifications.map((n) => ({ ...n, is_read: true }))} />;
 }
 

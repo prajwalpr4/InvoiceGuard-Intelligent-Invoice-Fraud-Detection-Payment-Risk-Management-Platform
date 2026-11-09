@@ -31,13 +31,24 @@ export function AppTopNav({
   userRole,
   userName,
   userEmail,
-  unreadCount = 2,
+  unreadCount = 0,
 }: TopNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [effectiveUnreadCount, setEffectiveUnreadCount] = useState(unreadCount);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setEffectiveUnreadCount(unreadCount);
+  }, [unreadCount]);
+
+  useEffect(() => {
+    if (pathname === '/app/notifications') {
+      setEffectiveUnreadCount(0);
+    }
+  }, [pathname]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -117,9 +128,13 @@ export function AppTopNav({
         </div>
 
         {/* Notifications Icon with Badge */}
-        <Link href="/app/notifications" className="relative p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors">
+        <Link
+          href="/app/notifications"
+          onClick={() => setEffectiveUnreadCount(0)}
+          className="relative p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+        >
           <Bell className="w-4 h-4" />
-          {unreadCount > 0 && (
+          {effectiveUnreadCount > 0 && (
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-600 ring-2 ring-white"></span>
           )}
         </Link>
@@ -169,27 +184,31 @@ export function AppTopNav({
               </div>
 
               <div className="space-y-0.5">
-                <Link
-                  href="/app/settings"
-                  onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-slate-700 rounded-md hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                  role="menuitem"
-                >
-                  <Sliders className="w-3.5 h-3.5 text-slate-400" />
-                  Settings & Thresholds
-                </Link>
+                {userRole === 'admin' && (
+                  <>
+                    <Link
+                      href="/app/settings"
+                      onClick={() => setIsProfileOpen(false)}
+                      className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-slate-700 rounded-md hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                      role="menuitem"
+                    >
+                      <Sliders className="w-3.5 h-3.5 text-slate-400" />
+                      Settings & Thresholds
+                    </Link>
 
-                <Link
-                  href="/app/audit-logs"
-                  onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-slate-700 rounded-md hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                  role="menuitem"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
-                  Security Audit Log
-                </Link>
+                    <Link
+                      href="/app/audit-logs"
+                      onClick={() => setIsProfileOpen(false)}
+                      className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-slate-700 rounded-md hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                      role="menuitem"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
+                      Security Audit Log
+                    </Link>
 
-                <div className="my-1 border-t border-slate-100" />
+                    <div className="my-1 border-t border-slate-100" />
+                  </>
+                )}
 
                 <button
                   type="button"
