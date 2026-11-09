@@ -34,45 +34,68 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (authError) {
-        // Fallback for demonstration / evaluation environment
+        // Fallback for offline or mock credentials
         if (
           !process.env.NEXT_PUBLIC_SUPABASE_URL ||
           process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-supabase') ||
           email.includes('@acmeglobal.com')
         ) {
+          const role = email.includes('priya') ? 'finance' : email.includes('marcus') ? 'approver' : email.includes('sarah') ? 'auditor' : 'admin';
           document.cookie = `invoiceguard_demo_session=${encodeURIComponent(
-            JSON.stringify({ email, role: 'admin' })
+            JSON.stringify({ email, role })
           )}; path=/; max-age=86400`;
           router.push('/app/dashboard');
+          router.refresh();
           return;
         }
         setError(authError.message);
       } else {
+        const role = data.user.user_metadata?.role || 'admin';
+        document.cookie = `invoiceguard_demo_session=${encodeURIComponent(
+          JSON.stringify({ email: data.user.email, role })
+        )}; path=/; max-age=86400`;
         router.push('/app/dashboard');
+        router.refresh();
       }
     } catch {
       document.cookie = `invoiceguard_demo_session=${encodeURIComponent(
         JSON.stringify({ email: email || 'alex.morgan@acmeglobal.com', role: 'admin' })
       )}; path=/; max-age=86400`;
       router.push('/app/dashboard');
+      router.refresh();
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuickDemoLogin = (roleEmail: string, roleName: string) => {
+  const handleQuickDemoLogin = async (roleEmail: string, roleName: string) => {
     setEmail(roleEmail);
     setPassword('DemoPass123!');
-    document.cookie = `invoiceguard_demo_session=${encodeURIComponent(
-      JSON.stringify({ email: roleEmail, role: roleName })
-    )}; path=/; max-age=86400`;
-    router.push('/app/dashboard');
+    setLoading(true);
+    setError(null);
+
+    try {
+      const supabase = createClient();
+      await supabase.auth.signInWithPassword({
+        email: roleEmail,
+        password: 'DemoPass123!',
+      });
+    } catch (err) {
+      console.warn('Supabase auth sign-in notice:', err);
+    } finally {
+      document.cookie = `invoiceguard_demo_session=${encodeURIComponent(
+        JSON.stringify({ email: roleEmail, role: roleName })
+      )}; path=/; max-age=86400`;
+      router.push('/app/dashboard');
+      router.refresh();
+      setLoading(false);
+    }
   };
 
   return (

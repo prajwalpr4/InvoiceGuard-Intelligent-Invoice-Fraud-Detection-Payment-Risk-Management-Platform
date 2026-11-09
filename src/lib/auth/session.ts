@@ -21,7 +21,35 @@ export interface CurrentUserSession {
 export async function getCurrentUserSession(): Promise<CurrentUserSession> {
   const cookieStore = await cookies();
 
-  // 1. Check if demo session cookie exists
+  // 1. Check Supabase auth first (Real Supabase Auth User)
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const role = (user.user_metadata?.role as UserRole) || 'admin';
+      return {
+        id: user.id,
+        email: user.email || 'user@company.com',
+        name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Authorized User',
+        role,
+        avatar_url: user.user_metadata?.avatar_url || undefined,
+        department: user.user_metadata?.department || 'Finance Operations',
+        job_title: user.user_metadata?.job_title || 'Authorized Officer',
+        organization: {
+          id: DEMO_ORG.id,
+          name: DEMO_ORG.name,
+          currency: DEMO_ORG.currency,
+        },
+      };
+    }
+  } catch {
+    // fallback
+  }
+
+  // 2. Check if demo session cookie exists (Fallback)
   const demoCookie = cookieStore.get('invoiceguard_demo_session');
   if (demoCookie?.value) {
     try {
@@ -30,7 +58,7 @@ export async function getCurrentUserSession(): Promise<CurrentUserSession> {
       const demoUser = DEMO_USERS[role] || DEMO_USERS.admin;
       return {
         id: demoUser.profile.id,
-        email: demoUser.profile.email,
+        email: parsed.email || demoUser.profile.email,
         name: demoUser.profile.full_name,
         role: role,
         avatar_url: demoUser.profile.avatar_url || undefined,
@@ -45,31 +73,6 @@ export async function getCurrentUserSession(): Promise<CurrentUserSession> {
     } catch {
       // fallback
     }
-  }
-
-  // 2. Check Supabase auth if configured
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      const role = (user.user_metadata?.role as UserRole) || 'finance';
-      return {
-        id: user.id,
-        email: user.email || 'user@company.com',
-        name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Authorized User',
-        role,
-        organization: {
-          id: DEMO_ORG.id,
-          name: user.user_metadata?.company_name || DEMO_ORG.name,
-          currency: DEMO_ORG.currency,
-        },
-      };
-    }
-  } catch {
-    // ignore
   }
 
   // Default to CFO Admin for local exploration
