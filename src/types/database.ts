@@ -170,6 +170,31 @@ export interface InvoiceLineItem {
   created_at: string;
 }
 
+export type OCRProviderName =
+  | 'gemini'
+  | 'mistral'
+  | 'openrouter'
+  | 'groq'
+  | 'tesseract'
+  | 'text-parser'
+  | 'manual';
+
+export interface OCRAttemptTrace {
+  provider: string;
+  model?: string;
+  status: 'success' | 'skipped' | 'rate_limited' | 'error';
+  detail?: string;
+}
+
+export interface ExtractionMetadata {
+  provider: OCRProviderName;
+  model?: string;
+  fallback_used?: boolean;
+  attempts?: OCRAttemptTrace[];
+  source_file_type?: string;
+  processed_at?: string;
+}
+
 export interface InvoiceExtraction {
   id: string;
   invoice_id: string;
@@ -192,6 +217,7 @@ export interface InvoiceExtraction {
     bank_account_number?: { value: string; confidence: number };
     ifsc_code?: { value: string; confidence: number };
     bank_name?: { value: string; confidence: number };
+    _meta?: ExtractionMetadata;
   };
   overall_confidence: number;
   is_verified_by_user: boolean;

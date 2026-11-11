@@ -41,7 +41,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Invoice, UserRole } from '@/types/database';
+import { Invoice, OCRAttemptTrace, UserRole } from '@/types/database';
 
 interface InvoiceDetailClientProps {
   invoice: any;
@@ -521,39 +521,154 @@ export function InvoiceDetailClient({
         {/* TAB 4: OCR EXTRACTION */}
         <TabsContent value="extraction" className="space-y-4">
           <Card className="bg-white border-slate-200 shadow-sm">
-            <CardHeader className="pb-3 border-b border-slate-100">
-              <CardTitle className="text-sm font-bold text-slate-900">
-                Extracted Field Confidence & Normalization
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="p-3 bg-slate-50 rounded-lg space-y-1">
-                  <span className="text-slate-500">Invoice Number</span>
-                  <div className="font-bold text-slate-900 font-mono">{invoice.invoice_number}</div>
-                  <Badge className="bg-emerald-100 text-emerald-800 text-[9px]">92% Confidence</Badge>
-                </div>
-
-                <div className="p-3 bg-slate-50 rounded-lg space-y-1">
-                  <span className="text-slate-500">Invoice Date</span>
-                  <div className="font-bold text-slate-900">{invoice.invoice_date}</div>
-                  <Badge className="bg-emerald-100 text-emerald-800 text-[9px]">88% Confidence</Badge>
-                </div>
-
-                <div className="p-3 bg-slate-50 rounded-lg space-y-1">
-                  <span className="text-slate-500">Subtotal & Tax Math Check</span>
-                  <div className="font-bold text-slate-900">
-                    ₹{invoice.subtotal} + ₹{invoice.tax_amount} = ₹{invoice.total_amount}
-                  </div>
-                  <Badge className="bg-emerald-100 text-emerald-800 text-[9px]">Arithmetic Valid</Badge>
-                </div>
-
-                <div className="p-3 bg-slate-50 rounded-lg space-y-1">
-                  <span className="text-slate-500">OCR Engine</span>
-                  <div className="font-bold text-slate-900">Tesseract.js v5 + PDF.js</div>
-                  <Badge className="bg-blue-100 text-blue-800 text-[9px]">Processed</Badge>
-                </div>
+            <CardHeader className="pb-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <CardTitle className="text-sm font-bold text-slate-900">
+                  Extracted Field Confidence & Normalization
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Stored OCR extraction payload verified prior to fraud scoring
+                </CardDescription>
               </div>
+
+              {invoice.extraction && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-emerald-100 text-emerald-800 text-[10px]">
+                    {Math.round(Number(invoice.extraction.overall_confidence || 0))}% Confidence
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px] border-blue-200 bg-blue-50 text-blue-800 uppercase">
+                    {invoice.extraction.extracted_fields?._meta?.provider || 'ocr'}
+                    {invoice.extraction.extracted_fields?._meta?.model
+                      ? ` • ${invoice.extraction.extracted_fields._meta.model}`
+                      : ''}
+                  </Badge>
+                  {invoice.extraction.is_verified_by_user && (
+                    <Badge variant="outline" className="text-[10px] border-emerald-200 bg-emerald-50 text-emerald-700">
+                      Human Verified
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </CardHeader>
+
+            <CardContent className="pt-4 space-y-4">
+              {(() => {
+                const extraction = invoice.extraction;
+                const fields = extraction?.extracted_fields || {};
+                const meta = fields._meta;
+
+                const mathDelta = Math.abs(
+                  Number(invoice.subtotal || 0) +
+                    Number(invoice.tax_amount || 0) -
+                    Number(invoice.total_amount || 0)
+                );
+                const mathValid = mathDelta <= 1;
+
+                const fieldConfig: Array<{
+                  key: string;
+                  label: string;
+                  isCurrency?: boolean;
+                  mono?: boolean;
+                }> = [
+                  { key: 'vendor_name', label: 'Detected Vendor' },
+                  { key: 'invoice_number', label: 'Invoice Number', mono: true },
+                  { key: 'invoice_date', label: 'Invoice Date' },
+                  { key: 'due_date', label: 'Due Date' },
+                  { key: 'gstin', label: 'GSTIN', mono: true },
+                  { key: 'pan', label: 'PAN', mono: true },
+                  { key: 'po_number', label: 'PO Reference', mono: true },
+                  { key: 'subtotal', label: 'Taxable Subtotal', isCurrency: true },
+                  { key: 'tax_amount', label: 'Tax / GST', isCurrency: true },
+                  { key: 'total_amount', label: 'Total Payable', isCurrency: true },
+                  { key: 'bank_account_number', label: 'Bank Account #', mono: true },
+                  { key: 'ifsc_code', label: 'IFSC Code', mono: true },
+                  { key: 'bank_name', label: 'Bank Name' },
+                ];
+
+                const populatedFields = fieldConfig.filter((cfg) => fields[cfg.key]?.value !== undefined);
+
+                return (
+                  <>
+                    {meta?.attempts && meta.attempts.length > 0 && (
+                      <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[11px] flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-slate-700">Extraction Chain Trace:</span>
+                        {meta.attempts.map((att: OCRAttemptTrace, idx: number) => (
+                          <Badge
+                            key={`${att.provider}-${idx}`}
+                            variant="outline"
+                            className={`text-[10px] ${
+                              att.status === 'success'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : att.status === 'rate_limited'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-white text-slate-600 border-slate-200'
+                            }`}
+                          >
+                            {att.provider}
+                            {att.model ? ` (${att.model})` : ''}: {att.status}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {populatedFields.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                        {populatedFields.map((cfg) => {
+                          const entry = fields[cfg.key];
+                          const displayVal = cfg.isCurrency
+                            ? formatCurrency(Number(entry.value || 0))
+                            : String(entry.value);
+                          return (
+                            <div key={cfg.key} className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-1">
+                              <span className="text-slate-500 block">{cfg.label}</span>
+                              <div className={`font-bold text-slate-900 ${cfg.mono ? 'font-mono' : ''}`}>
+                                {displayVal}
+                              </div>
+                              <Badge className="bg-emerald-100 text-emerald-800 text-[9px]">
+                                {Math.round(Number(entry.confidence || 0))}% Confidence
+                              </Badge>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                        {extraction
+                          ? 'Structured field map was empty; raw OCR transcript is preserved below.'
+                          : 'No OCR document extraction was captured for this invoice (registered manually).'}
+                      </div>
+                    )}
+
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div>
+                        <span className="text-slate-500 block">Subtotal & Tax Arithmetic Check</span>
+                        <div className="font-bold text-slate-900">
+                          {formatCurrency(invoice.subtotal)} + {formatCurrency(invoice.tax_amount)} ={' '}
+                          {formatCurrency(invoice.total_amount)}
+                        </div>
+                      </div>
+                      <Badge
+                        className={`text-[10px] ${
+                          mathValid ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {mathValid ? 'Arithmetic Valid' : `Discrepancy: ₹${mathDelta.toFixed(2)}`}
+                      </Badge>
+                    </div>
+
+                    {extraction?.raw_text && (
+                      <div className="space-y-1.5">
+                        <span className="text-xs font-semibold text-slate-700 block">
+                          Raw Extracted OCR Transcript (Saved in Supabase)
+                        </span>
+                        <pre className="p-3 rounded-lg bg-slate-900 text-slate-100 text-[11px] max-h-64 overflow-auto whitespace-pre-wrap font-mono">
+                          {extraction.raw_text}
+                        </pre>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>

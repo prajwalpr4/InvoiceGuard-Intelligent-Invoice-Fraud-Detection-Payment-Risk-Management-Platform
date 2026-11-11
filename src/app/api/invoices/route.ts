@@ -52,6 +52,14 @@ export async function POST(request: NextRequest) {
         } catch {}
       }
 
+      let extracted_data = undefined;
+      const extractedDataRaw = formData.get('extracted_data');
+      if (extractedDataRaw && typeof extractedDataRaw === 'string') {
+        try {
+          extracted_data = JSON.parse(extractedDataRaw);
+        } catch {}
+      }
+
       invoiceData = {
         invoice_number: formData.get('invoice_number') as string,
         invoice_date: (formData.get('invoice_date') as string) || new Date().toISOString().split('T')[0],
@@ -67,6 +75,7 @@ export async function POST(request: NextRequest) {
         submitted_by_id: (formData.get('submitted_by_id') as string) || '52961957-4846-4436-a783-afa5d7818ac9',
         bank_details,
         extracted_text: (formData.get('extracted_text') as string) || undefined,
+        extracted_data,
         file: fileInfo,
       };
     } else {
@@ -86,6 +95,7 @@ export async function POST(request: NextRequest) {
         submitted_by_id: body.submitted_by_id || '52961957-4846-4436-a783-afa5d7818ac9',
         bank_details: body.bank_details,
         extracted_text: body.extracted_text,
+        extracted_data: body.extracted_data,
       };
     }
 

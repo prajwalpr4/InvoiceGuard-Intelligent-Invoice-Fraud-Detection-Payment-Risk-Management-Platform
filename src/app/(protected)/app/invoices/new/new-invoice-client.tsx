@@ -28,14 +28,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Vendor, PurchaseOrder } from '@/types/database';
-import { OCRExtractionPipeline } from '@/lib/ocr/extractor';
+import { Vendor, PurchaseOrder, OCRAttemptTrace } from '@/types/database';
+import { ExtractedInvoiceData, OCRExtractionPipeline } from '@/lib/ocr/extractor';
+import { extractPdfTextInBrowser, renderPdfPagesToImages, RenderedPDFPage } from '@/lib/ocr/pdf-client';
 
 interface NewInvoiceClientProps {
   vendors: Vendor[];
   purchaseOrders: PurchaseOrder[];
   currentUserId: string;
 }
+
+const PROVIDER_LABELS: Record<string, string> = {
+  gemini: 'Gemini API',
+  mistral: 'Mistral OCR',
+  openrouter: 'OpenRouter Free Vision',
+  groq: 'Groq Vision/LLM Fallback',
+  tesseract: 'Tesseract.js Local Fallback',
+  'text-parser': 'Text Layer Parser',
+};
 
 export function NewInvoiceClient({
   vendors,
@@ -45,7 +55,10 @@ export function NewInvoiceClient({
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [extractedData, setExtractedData] = useState<any>(null);
+  const [processingStage, setProcessingStage] = useState('');
+  const [extractedData, setExtractedData] = useState<ExtractedInvoiceData | null>(null);
+  const [showRawText, setShowRawText] = useState(false);
+  const [ocrNotice, setOcrNotice] = useState<string | null>(null);
 
   // Form State
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -64,49 +77,254 @@ export function NewInvoiceClient({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const applyExtractedFields = (parsed: ExtractedInvoiceData) => {
+    if (parsed.invoice_number) setInvoiceNumber(parsed.invoice_number);
+    if (parsed.invoice_date) setInvoiceDate(parsed.invoice_date);
+    if (parsed.due_date) setDueDate(parsed.due_date);
+    if (parsed.subtotal !== undefined && parsed.subtotal > 0) setSubtotal(parsed.subtotal);
+    if (parsed.tax_amount !== undefined && parsed.tax_amount >= 0) setTaxAmount(parsed.tax_amount);
+    if (parsed.total_amount !== undefined && parsed.total_amount > 0) {
+      setTotalAmount(parsed.total_amount);
+    }
+    if (parsed.bank_account_number) setBankAccount(parsed.bank_account_number);
+    if (parsed.ifsc_code) setIfscCode(parsed.ifsc_code);
+    if (parsed.bank_name) setBankName(parsed.bank_name);
+
+    // Auto-match registered vendor by GSTIN first, then vendor name
+    const matchedVendor = vendors.find((v) => {
+      if (parsed.gstin && v.tax_id && v.tax_id.trim().toUpperCase() === parsed.gstin.toUpperCase()) {
+        return true;
+      }
+      if (parsed.vendor_name) {
+        const extractedLower = parsed.vendor_name.toLowerCase();
+        const vendorLower = v.name.toLowerCase();
+        return vendorLower.includes(extractedLower) || extractedLower.includes(vendorLower);
+      }
+      return false;
+    });
+    if (matchedVendor) {
+      setSelectedVendorId(matchedVendor.id);
+    }
+
+    // Auto-match Purchase Order reference if present
+    if (parsed.po_number) {
+      const matchedPo = purchaseOrders.find(
+        (p) => p.po_number.trim().toUpperCase() === parsed.po_number!.trim().toUpperCase()
+      );
+      if (matchedPo) {
+        setSelectedPoId(matchedPo.id);
+      }
+    }
+  };
+
+  const runLocalTesseractFallback = async (
+    uploadedFile: File,
+    isPdf: boolean,
+    preRenderedPages: RenderedPDFPage[],
+    attempts: OCRAttemptTrace[]
+  ): Promise<ExtractedInvoiceData | null> => {
+    setProcessingStage('Running local Tesseract.js OCR fallback...');
+
+    let pageImages = preRenderedPages;
+    if (isPdf && pageImages.length === 0) {
+      pageImages = await renderPdfPagesToImages(uploadedFile, 3);
+    }
+
+    const ocrInputs: Array<File | string> = isPdf
+      ? pageImages.map((p) => p.dataUrl)
+      : [uploadedFile];
+
+    if (ocrInputs.length === 0) {
+      return null;
+    }
+
+    const { createWorker } = await import('tesseract.js');
+    const worker = await createWorker('eng');
+    const chunks: string[] = [];
+
+    try {
+      for (const input of ocrInputs) {
+        const ret = await worker.recognize(input);
+        if (ret?.data?.text?.trim()) {
+          chunks.push(ret.data.text.trim());
+        }
+      }
+    } finally {
+      await worker.terminate();
+    }
+
+    const combinedText = chunks.join('\n\n').trim();
+    if (!combinedText) {
+      return null;
+    }
+
+    const updatedAttempts: OCRAttemptTrace[] = [
+      ...attempts,
+      {
+        provider: 'tesseract',
+        model: 'tesseract.js-eng',
+        status: 'success',
+        detail: `Extracted via local browser OCR (${ocrInputs.length} page/image)`,
+      },
+    ];
+
+    return OCRExtractionPipeline.parseInvoiceText(combinedText, {
+      ocr_provider: 'tesseract',
+      ocr_model: 'tesseract.js-eng',
+      fallback_used: true,
+      attempts: updatedAttempts,
+    });
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
     if (!uploadedFile) return;
 
     setFile(uploadedFile);
+    setExtractedData(null);
+    setOcrNotice(null);
+    setError(null);
     setIsProcessing(true);
 
+    const isTextFile =
+      uploadedFile.type === 'text/plain' ||
+      uploadedFile.name.toLowerCase().endsWith('.txt') ||
+      uploadedFile.name.toLowerCase().endsWith('.csv');
+    const isPdf =
+      uploadedFile.type === 'application/pdf' ||
+      uploadedFile.name.toLowerCase().endsWith('.pdf');
+
+    let browserRawText = '';
+    let renderedPages: RenderedPDFPage[] = [];
+    let attempts: OCRAttemptTrace[] = [];
+
     try {
-      let rawText = '';
-      if (
-        uploadedFile.type === 'text/plain' ||
-        uploadedFile.name.endsWith('.txt') ||
-        uploadedFile.name.endsWith('.csv')
-      ) {
-        rawText = await uploadedFile.text();
-      } else {
+      setProcessingStage('Preparing document for OCR...');
+      if (isTextFile) {
+        browserRawText = await uploadedFile.text();
+      } else if (isPdf) {
         try {
-          const { createWorker } = await import('tesseract.js');
-          const worker = await createWorker('eng');
-          const ret = await worker.recognize(uploadedFile);
-          rawText = ret.data.text;
-          await worker.terminate();
-        } catch {
-          rawText = `Invoice: ${uploadedFile.name.replace(/\.[^/.]+$/, '')}`;
+          browserRawText = await extractPdfTextInBrowser(uploadedFile, 8);
+        } catch (pdfErr) {
+          console.warn('PDF text layer inspection skipped:', pdfErr);
         }
       }
 
-      if (rawText) {
-        const parsed = OCRExtractionPipeline.parseInvoiceText(rawText);
-        setExtractedData(parsed);
-
-        if (parsed.invoice_number) setInvoiceNumber(parsed.invoice_number);
-        if (parsed.subtotal) setSubtotal(parsed.subtotal);
-        if (parsed.tax_amount) setTaxAmount(parsed.tax_amount);
-        if (parsed.total_amount) setTotalAmount(parsed.total_amount);
-        if (parsed.bank_account_number) setBankAccount(parsed.bank_account_number);
-        if (parsed.ifsc_code) setIfscCode(parsed.ifsc_code);
-        if (parsed.bank_name) setBankName(parsed.bank_name);
+      setProcessingStage('Extracting fields via Gemini → Mistral → OpenRouter → Groq OCR pipeline...');
+      const ocrForm = new FormData();
+      ocrForm.append('file', uploadedFile);
+      if (browserRawText.trim()) {
+        ocrForm.append('raw_text', browserRawText);
       }
-    } catch (err: any) {
+
+      const res = await fetch('/api/ocr/extract', {
+        method: 'POST',
+        body: ocrForm,
+      });
+
+      if (!res.ok) {
+        const errPayload = await res.json().catch(() => ({}));
+        throw new Error(errPayload.error || 'Server OCR request failed');
+      }
+
+      let ocrResult = await res.json();
+      attempts = Array.isArray(ocrResult.attempts) ? ocrResult.attempts : [];
+
+      if (ocrResult.status === 'needs_client_pdf_render' && isPdf) {
+        setProcessingStage('Rendering PDF pages for OpenRouter / Groq Vision / Tesseract fallback...');
+        renderedPages = await renderPdfPagesToImages(uploadedFile, 3);
+
+        if (renderedPages.length > 0) {
+          const secondRes = await fetch('/api/ocr/extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              file_name: uploadedFile.name,
+              mime_type: uploadedFile.type || 'application/pdf',
+              raw_text: browserRawText || undefined,
+              skip_gemini: true,
+              skip_mistral: true,
+              page_images: renderedPages.map((p) => ({
+                mimeType: p.mimeType,
+                base64: p.base64,
+              })),
+            }),
+          });
+          if (secondRes.ok) {
+            ocrResult = await secondRes.json();
+            attempts = Array.isArray(ocrResult.attempts) ? ocrResult.attempts : attempts;
+          }
+        }
+      }
+
+      let finalExtracted: ExtractedInvoiceData | null = null;
+      if (ocrResult.status === 'extracted' && ocrResult.data) {
+        finalExtracted = ocrResult.data as ExtractedInvoiceData;
+      } else if (isTextFile && browserRawText.trim()) {
+        finalExtracted = OCRExtractionPipeline.parseInvoiceText(browserRawText, {
+          ocr_provider: 'text-parser',
+          ocr_model: 'plain-text+regex',
+          fallback_used: true,
+          attempts,
+        });
+      } else if (!isTextFile) {
+        finalExtracted = await runLocalTesseractFallback(
+          uploadedFile,
+          isPdf,
+          renderedPages,
+          attempts
+        );
+      }
+
+      if (finalExtracted) {
+        setExtractedData(finalExtracted);
+        applyExtractedFields(finalExtracted);
+        if (finalExtracted.fallback_used) {
+          const skippedOrLimited = finalExtracted.attempts?.filter(
+            (a) => a.status === 'rate_limited' || a.status === 'error' || a.status === 'skipped'
+          );
+          if (skippedOrLimited && skippedOrLimited.length > 0) {
+            setOcrNotice(
+              `Primary OCR bypassed (${skippedOrLimited.map((a) => `${a.provider}: ${a.detail || a.status}`).join('; ')}) — extracted with ${PROVIDER_LABELS[finalExtracted.ocr_provider || 'tesseract']}.`
+            );
+          }
+        }
+      } else {
+        setOcrNotice(
+          'Automatic OCR could not extract text cleanly from this file. Please fill or verify fields manually below.'
+        );
+      }
+    } catch (err: unknown) {
       console.error('OCR processing error:', err);
+      if (isTextFile && browserRawText.trim()) {
+        const parsed = OCRExtractionPipeline.parseInvoiceText(browserRawText, {
+          ocr_provider: 'text-parser',
+          fallback_used: true,
+          attempts,
+        });
+        setExtractedData(parsed);
+        applyExtractedFields(parsed);
+      } else if (!isTextFile) {
+        try {
+          const fallbackParsed = await runLocalTesseractFallback(
+            uploadedFile,
+            isPdf,
+            renderedPages,
+            attempts
+          );
+          if (fallbackParsed) {
+            setExtractedData(fallbackParsed);
+            applyExtractedFields(fallbackParsed);
+            setOcrNotice('Cloud OCR unavailable; extracted locally via Tesseract.js fallback.');
+          }
+        } catch (tessErr) {
+          console.error('Tesseract fallback error:', tessErr);
+          setOcrNotice('OCR fallback could not read this document. Please enter fields manually.');
+        }
+      }
     } finally {
       setIsProcessing(false);
+      setProcessingStage('');
     }
   };
 
@@ -144,8 +362,11 @@ export function NewInvoiceClient({
           bank_name: bankName,
         })
       );
-      if (extractedData?.raw_text) {
-        formData.append('extracted_text', extractedData.raw_text);
+      if (extractedData) {
+        formData.append('extracted_data', JSON.stringify(extractedData));
+        if (extractedData.raw_text) {
+          formData.append('extracted_text', extractedData.raw_text);
+        }
       }
 
       const res = await fetch('/api/invoices', {
@@ -195,11 +416,11 @@ export function NewInvoiceClient({
           <input
             type="file"
             id="file-upload"
-            accept=".pdf,.png,.jpg,.jpeg,.txt"
+            accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.csv"
             onChange={handleFileUpload}
             className="hidden"
           />
-          <label htmlFor="file-upload" className="cursor-pointer">
+          <label htmlFor="file-upload" className="cursor-pointer block">
             <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center mx-auto mb-3">
               <UploadCloud className="w-6 h-6" />
             </div>
@@ -207,21 +428,82 @@ export function NewInvoiceClient({
               {file ? file.name : 'Click to select or drag & drop invoice document'}
             </div>
             <div className="text-xs text-slate-500 mt-1">
-              Supports PDF, PNG, JPG files up to 25MB • Automated OCR extraction
+              Supports PDF, PNG, JPG, TXT files up to 25MB • Gemini → Mistral OCR → OpenRouter → Groq → Tesseract
             </div>
           </label>
 
           {isProcessing && (
             <div className="mt-4 flex items-center justify-center gap-2 text-xs text-blue-700 font-medium">
               <span className="w-3.5 h-3.5 rounded-full border-2 border-blue-700 border-t-transparent animate-spin"></span>
-              Extracting fields with Tesseract.js & PDF parser...
+              {processingStage || 'Extracting invoice fields...'}
             </div>
           )}
 
-          {extractedData && (
-            <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-medium">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              OCR Extracted with {extractedData.overall_confidence}% Confidence
+          {extractedData && !isProcessing && (
+            <div className="mt-4 space-y-3 text-left max-w-2xl mx-auto">
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  OCR Extracted ({extractedData.overall_confidence}% Confidence)
+                </span>
+                <Badge variant="outline" className="text-[11px] bg-slate-50 text-slate-700 border-slate-200">
+                  Engine: {PROVIDER_LABELS[extractedData.ocr_provider || 'text-parser'] || extractedData.ocr_provider}
+                  {extractedData.ocr_model ? ` (${extractedData.ocr_model})` : ''}
+                </Badge>
+              </div>
+
+              {(extractedData.vendor_name || extractedData.gstin || extractedData.pan || extractedData.po_number) && (
+                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-700 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {extractedData.vendor_name && (
+                    <div>
+                      <span className="text-slate-400 block">Detected Vendor</span>
+                      <span className="font-semibold text-slate-900">{extractedData.vendor_name}</span>
+                    </div>
+                  )}
+                  {extractedData.gstin && (
+                    <div>
+                      <span className="text-slate-400 block">GSTIN</span>
+                      <span className="font-mono font-semibold text-slate-900">{extractedData.gstin}</span>
+                    </div>
+                  )}
+                  {extractedData.pan && (
+                    <div>
+                      <span className="text-slate-400 block">PAN</span>
+                      <span className="font-mono font-semibold text-slate-900">{extractedData.pan}</span>
+                    </div>
+                  )}
+                  {extractedData.po_number && (
+                    <div>
+                      <span className="text-slate-400 block">PO Ref</span>
+                      <span className="font-mono font-semibold text-slate-900">{extractedData.po_number}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {extractedData.raw_text && (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowRawText((prev) => !prev)}
+                    className="text-[11px] text-blue-700 hover:underline font-medium"
+                  >
+                    {showRawText ? 'Hide Raw OCR Text' : 'Inspect Raw OCR Text'}
+                  </button>
+                  {showRawText && (
+                    <pre className="mt-2 p-3 rounded-lg bg-slate-900 text-slate-100 text-[11px] text-left max-h-48 overflow-auto whitespace-pre-wrap font-mono">
+                      {extractedData.raw_text}
+                    </pre>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {ocrNotice && !isProcessing && (
+            <div className="mt-3 max-w-2xl mx-auto p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800 text-left flex items-start gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+              <span>{ocrNotice}</span>
             </div>
           )}
         </CardContent>

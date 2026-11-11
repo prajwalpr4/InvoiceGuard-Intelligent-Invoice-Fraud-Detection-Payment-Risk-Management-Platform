@@ -36,7 +36,7 @@ import {
 } from './demo-data';
 import { FraudDetectionEngine } from '../fraud/detector';
 import { RiskScoringEngine } from '../fraud/risk-scorer';
-import { OCRExtractionPipeline } from '../ocr/extractor';
+import { OCRExtractionPipeline, ExtractedInvoiceData } from '../ocr/extractor';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 function getSupabase() {
@@ -65,6 +65,7 @@ class InvoiceGuardStore {
   notifications: Notification[] = [...DEMO_NOTIFICATIONS];
   auditLogs: AuditLog[] = [...DEMO_AUDIT_LOGS];
   comments: InvoiceComment[] = [];
+  extractions: InvoiceExtraction[] = [];
 
   constructor() {
     this.recalculateAllRisks();
@@ -298,6 +299,7 @@ export class InvoiceGuardRepository {
     risk_assessment?: RiskAssessment;
     files?: InvoiceFile[];
     file?: InvoiceFile;
+    extraction?: InvoiceExtraction;
   }) | null> {
     const supabase = getSupabase();
     let invoice: Invoice | null = null;
@@ -306,6 +308,7 @@ export class InvoiceGuardRepository {
     let findings: FraudFinding[] = [];
     let risk_assessment: RiskAssessment | undefined = undefined;
     let files: InvoiceFile[] = [];
+    let extraction: InvoiceExtraction | undefined = undefined;
 
     if (supabase) {
       try {
@@ -313,18 +316,20 @@ export class InvoiceGuardRepository {
         if (!invErr && inv) {
           invoice = inv as Invoice;
 
-          const [vRes, poRes, fRes, raRes, filesRes] = await Promise.all([
+          const [vRes, poRes, fRes, raRes, filesRes, extRes] = await Promise.all([
             inv.vendor_id ? supabase.from('vendors').select('*').eq('id', inv.vendor_id).maybeSingle() : Promise.resolve({ data: null }),
             inv.po_id ? supabase.from('purchase_orders').select('*').eq('id', inv.po_id).maybeSingle() : Promise.resolve({ data: null }),
             supabase.from('fraud_findings').select('*').eq('invoice_id', id),
             supabase.from('risk_assessments').select('*').eq('invoice_id', id).maybeSingle(),
             supabase.from('invoice_files').select('*').eq('invoice_id', id),
+            supabase.from('invoice_extractions').select('*').eq('invoice_id', id).maybeSingle(),
           ]);
 
           if (vRes.data) vendor = vRes.data as Vendor;
           if (poRes.data) purchase_order = poRes.data as PurchaseOrder;
           if (fRes.data) findings = fRes.data as FraudFinding[];
           if (raRes.data) risk_assessment = raRes.data as RiskAssessment;
+          if (extRes.data) extraction = extRes.data as InvoiceExtraction;
 
           if (filesRes.data && filesRes.data.length > 0) {
             files = await Promise.all(
@@ -351,6 +356,9 @@ export class InvoiceGuardRepository {
       vendor = this.store.vendors.find((v) => v.id === fallbackInv.vendor_id);
       purchase_order = this.store.purchaseOrders.find((p) => p.id === fallbackInv.po_id);
       findings = this.store.fraudFindings.filter((f) => f.invoice_id === fallbackInv.id);
+      extraction = this.store.extractions.find((e) => e.invoice_id === fallbackInv.id);
+    } else if (!extraction) {
+      extraction = this.store.extractions.find((e) => e.invoice_id === id);
     }
 
     if (!risk_assessment) {
@@ -369,6 +377,7 @@ export class InvoiceGuardRepository {
       risk_assessment,
       files,
       file: files.length > 0 ? files[0] : undefined,
+      extraction,
     };
   }
 
@@ -387,6 +396,7 @@ export class InvoiceGuardRepository {
     notes?: string;
     submitted_by_id: string;
     extracted_text?: string;
+    extracted_data?: Partial<ExtractedInvoiceData>;
     bank_details?: {
       account_number?: string;
       ifsc_code?: string;
@@ -514,21 +524,47 @@ export class InvoiceGuardRepository {
       }
     }
 
-    // 3. Save OCR text if present
-    if (supabase && data.extracted_text) {
-      try {
-        await supabase.from('invoice_extractions').insert({
-          id: crypto.randomUUID(),
-          invoice_id: id,
-          raw_text: data.extracted_text,
-          overall_confidence: 95.0,
-          is_verified_by_user: true,
-          verified_by_id: data.submitted_by_id,
-          verified_at: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-        });
-      } catch (e) {
-        console.error('invoice_extractions error:', e);
+    // 3. Save structured OCR extraction metadata & raw text if present
+    if (data.extracted_data || data.extracted_text) {
+      const rawText = data.extracted_data?.raw_text || data.extracted_text || '';
+      const parsedFallback = rawText ? OCRExtractionPipeline.parseInvoiceText(rawText) : undefined;
+      const mergedExtraction: ExtractedInvoiceData = {
+        ...parsedFallback,
+        ...data.extracted_data,
+        raw_text: rawText,
+        overall_confidence:
+          data.extracted_data?.overall_confidence ??
+          parsedFallback?.overall_confidence ??
+          0,
+      };
+      const formatted = OCRExtractionPipeline.formatForDatabase(id, mergedExtraction, {
+        isVerified: true,
+        verifiedById: data.submitted_by_id,
+        sourceFileType: data.file?.mimeType,
+      });
+
+      this.store.extractions = this.store.extractions.filter((e) => e.invoice_id !== id);
+      this.store.extractions.push(formatted);
+
+      if (supabase) {
+        try {
+          const { error: extErr } = await supabase.from('invoice_extractions').insert({
+            id: crypto.randomUUID(),
+            invoice_id: id,
+            raw_text: formatted.raw_text,
+            extracted_fields: formatted.extracted_fields,
+            overall_confidence: formatted.overall_confidence,
+            is_verified_by_user: formatted.is_verified_by_user,
+            verified_by_id: formatted.verified_by_id,
+            verified_at: formatted.verified_at,
+            created_at: formatted.created_at,
+          });
+          if (extErr) {
+            console.error('invoice_extractions insert error:', extErr);
+          }
+        } catch (e) {
+          console.error('invoice_extractions error:', e);
+        }
       }
     }
 
